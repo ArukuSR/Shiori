@@ -1,25 +1,41 @@
 package eu.kanade.presentation.browse
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.Public // Icono seguro (Mundo)
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.browse.components.BaseSourceItem
 import eu.kanade.tachiyomi.ui.browse.source.SourcesScreenModel
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreenModel.Listing
@@ -46,6 +62,8 @@ fun SourcesScreen(
     onClickPin: (Source) -> Unit,
     onLongClickItem: (Source) -> Unit,
 ) {
+    val navigator = LocalNavigator.currentOrThrow
+
     when {
         state.isLoading -> LoadingScreen(Modifier.padding(contentPadding))
         state.isEmpty -> EmptyScreen(
@@ -56,6 +74,17 @@ fun SourcesScreen(
             ScrollbarLazyColumn(
                 contentPadding = contentPadding + topSmallPaddingValues,
             ) {
+                // 1. WIDGET DE BÚSQUEDA GLOBAL
+                item(key = "global-search-widget") {
+                    GlobalSearchWidget(
+                        onClick = {
+                            // CORRECCIÓN CLAVE: Usamos la ruta completa para evitar confusión
+                            // Si esto da error, prueba borrando "source.globalsearch." y deja solo "ui.browse.GlobalSearchScreen"
+                            navigator.push(eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen(""))
+                        }
+                    )
+                }
+
                 items(
                     items = state.items,
                     contentType = {
@@ -92,18 +121,74 @@ fun SourcesScreen(
     }
 }
 
+// --- NUEVO COMPONENTE: Barra de Búsqueda Global ---
+@Composable
+fun GlobalSearchWidget(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .height(56.dp)
+            .clip(RoundedCornerShape(28.dp)) // Forma de pastilla completa
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), // Color suave
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Public, // Icono del Mundo
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(verticalArrangement = Arrangement.Center) {
+                Text(
+                    text = "Búsqueda Global",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Busca en todas tus fuentes...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun SourceHeader(
     language: String,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    Text(
-        text = LocaleHelper.getSourceDisplayName(language, context),
+    // Cabecera más limpia y moderna
+    Row(
         modifier = modifier
-            .padding(horizontal = MaterialTheme.padding.medium, vertical = MaterialTheme.padding.small),
-        style = MaterialTheme.typography.header,
-    )
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = LocaleHelper.getSourceDisplayName(language, context).uppercase(),
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        )
+        // Línea decorativa
+        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+        )
+    }
 }
 
 @Composable
@@ -120,11 +205,16 @@ private fun SourceItem(
         onClickItem = { onClickItem(source, Listing.Popular) },
         onLongClickItem = { onLongClickItem(source) },
         action = {
+            // Botón "Recientes" más estilizado
             if (source.supportsLatest) {
-                TextButton(onClick = { onClickItem(source, Listing.Latest) }) {
+                TextButton(
+                    onClick = { onClickItem(source, Listing.Latest) },
+                    shape = CircleShape
+                ) {
                     Text(
                         text = stringResource(MR.strings.latest),
-                        style = LocalTextStyle.current.copy(
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
                         ),
                     )
@@ -147,16 +237,16 @@ private fun SourcePinButton(
     val tint = if (isPinned) {
         MaterialTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.onBackground.copy(
-            alpha = SECONDARY_ALPHA,
-        )
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
     }
     val description = if (isPinned) MR.strings.action_unpin else MR.strings.action_pin
+
     IconButton(onClick = onClick) {
         Icon(
             imageVector = icon,
             tint = tint,
             contentDescription = stringResource(description),
+            modifier = Modifier.size(20.dp)
         )
     }
 }

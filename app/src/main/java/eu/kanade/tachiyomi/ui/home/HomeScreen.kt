@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,6 +44,9 @@ import eu.kanade.tachiyomi.ui.library.LibraryTab
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.more.MoreTab
 import eu.kanade.tachiyomi.ui.updates.UpdatesTab
+// IMPORTANTE: Asegúrate de que este import coincida con el archivo que creamos antes
+import eu.kanade.tachiyomi.ui.browse.ExtensionManagerScreen
+
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -73,7 +77,7 @@ object HomeScreen : Screen() {
 
     private val TABS = listOf(
         LibraryTab,
-        UpdatesTab,
+        //UpdatesTab, // Si alguna vez quieres reactivar Updates, descomenta aquí
         HistoryTab,
         BrowseTab,
         MoreTab,
@@ -108,7 +112,9 @@ object HomeScreen : Screen() {
                                 enter = expandVertically(),
                                 exit = shrinkVertically(),
                             ) {
-                                NavigationBar {
+                                NavigationBar(
+                                    containerColor = Color.Transparent,
+                                ) {
                                     TABS.fastForEach {
                                         NavigationBarItem(it)
                                     }
@@ -151,25 +157,35 @@ object HomeScreen : Screen() {
                     }
                 }
                 launch {
-                    openTabEvent.receiveAsFlow().collectLatest {
-                        tabNavigator.current = when (it) {
-                            is Tab.Library -> LibraryTab
-                            Tab.Updates -> UpdatesTab
-                            Tab.History -> HistoryTab
-                            is Tab.Browse -> {
-                                if (it.toExtensions) {
-                                    BrowseTab.showExtension()
+                    openTabEvent.receiveAsFlow().collectLatest { tabEvent ->
+                        // Lógica de navegación principal
+                        when (tabEvent) {
+                            is Tab.Library -> {
+                                tabNavigator.current = LibraryTab
+                                if (tabEvent.mangaIdToOpen != null) {
+                                    navigator.push(MangaScreen(tabEvent.mangaIdToOpen))
                                 }
-                                BrowseTab
                             }
-                            is Tab.More -> MoreTab
-                        }
-
-                        if (it is Tab.Library && it.mangaIdToOpen != null) {
-                            navigator.push(MangaScreen(it.mangaIdToOpen))
-                        }
-                        if (it is Tab.More && it.toDownloads) {
-                            navigator.push(DownloadQueueScreen)
+                            Tab.Updates -> tabNavigator.current = UpdatesTab
+                            Tab.History -> tabNavigator.current = HistoryTab
+                            is Tab.Browse -> {
+                                // CORRECCIÓN CLAVE:
+                                // Si pide ir a extensiones, empujamos la pantalla nueva
+                                // Si no, simplemente cambiamos a la pestaña Browse
+                                if (tabEvent.toExtensions) {
+                                    // Primero vamos a MoreTab (donde vive ahora Extensiones) o nos quedamos donde estamos
+                                    // Opcional: tabNavigator.current = MoreTab
+                                    navigator.push(ExtensionManagerScreen())
+                                } else {
+                                    tabNavigator.current = BrowseTab
+                                }
+                            }
+                            is Tab.More -> {
+                                tabNavigator.current = MoreTab
+                                if (tabEvent.toDownloads) {
+                                    navigator.push(DownloadQueueScreen)
+                                }
+                            }
                         }
                     }
                 }
@@ -183,6 +199,7 @@ object HomeScreen : Screen() {
         val navigator = LocalNavigator.currentOrThrow
         val scope = rememberCoroutineScope()
         val selected = tabNavigator.current::class == tab::class
+
         NavigationBarItem(
             selected = selected,
             onClick = {
@@ -193,15 +210,8 @@ object HomeScreen : Screen() {
                 }
             },
             icon = { NavigationIconItem(tab) },
-            label = {
-                Text(
-                    text = tab.options.title,
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            alwaysShowLabel = true,
+            label = null,
+            alwaysShowLabel = false,
         )
     }
 
@@ -261,7 +271,9 @@ object HomeScreen : Screen() {
                             }
                         }
                     }
-                    BrowseTab::class.isInstance(tab) -> {
+                    // MOVIDO: Ahora la notificación de extensiones sale en MoreTab (Ajustes)
+                    // Porque ahí es donde movimos el menú de extensiones.
+                    MoreTab::class.isInstance(tab) -> {
                         val count by produceState(initialValue = 0) {
                             Injekt.get<SourcePreferences>().extensionUpdatesCount().changes()
                                 .collectLatest { value = it }

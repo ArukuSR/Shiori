@@ -121,11 +121,11 @@ fun MangaInfoBox(
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
-        // Backdrop
         val backdropGradientColors = listOf(
-            Color.Transparent,
+            Color.Black.copy(alpha = 0.5f),
             MaterialTheme.colorScheme.background,
         )
+
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(manga)
@@ -141,11 +141,10 @@ fun MangaInfoBox(
                         brush = Brush.verticalGradient(colors = backdropGradientColors),
                     )
                 }
-                .blur(4.dp)
-                .alpha(0.2f),
+                .blur(24.dp)
+                .alpha(0.8f),
         )
 
-        // Manga & source info
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
             if (!isTabletUi) {
                 MangaAndSourceTitlesSmall(

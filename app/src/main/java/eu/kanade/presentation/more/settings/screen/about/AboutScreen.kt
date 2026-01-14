@@ -2,13 +2,7 @@ package eu.kanade.presentation.more.settings.screen.about
 
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,7 +12,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -30,7 +23,6 @@ import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
-import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
 import eu.kanade.tachiyomi.util.CrashLogUtil
 import eu.kanade.tachiyomi.util.lang.toDateTimestampString
@@ -45,16 +37,9 @@ import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.i18n.MR
-import tachiyomi.presentation.core.components.LinkIcon
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.icons.CustomIcons
-import tachiyomi.presentation.core.icons.Discord
-import tachiyomi.presentation.core.icons.Facebook
-import tachiyomi.presentation.core.icons.Github
-import tachiyomi.presentation.core.icons.Reddit
-import tachiyomi.presentation.core.icons.X
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.time.Instant
@@ -67,7 +52,6 @@ object AboutScreen : Screen() {
     override fun Content() {
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
-        val uriHandler = LocalUriHandler.current
         val handleBack = LocalBackPress.current
         val navigator = LocalNavigator.currentOrThrow
         var isCheckingUpdates by remember { mutableStateOf(false) }
@@ -84,10 +68,12 @@ object AboutScreen : Screen() {
             ScrollbarLazyColumn(
                 contentPadding = contentPadding,
             ) {
+                // 1. EL LOGO (Usa el diseño que definimos en LogoHeader)
                 item {
                     LogoHeader()
                 }
 
+                // 2. LA VERSIÓN
                 item {
                     TextPreferenceWidget(
                         title = stringResource(MR.strings.version),
@@ -138,68 +124,6 @@ object AboutScreen : Screen() {
                     }
                 }
 
-                if (!BuildConfig.DEBUG) {
-                    item {
-                        TextPreferenceWidget(
-                            title = stringResource(MR.strings.whats_new),
-                            onPreferenceClick = { uriHandler.openUri(RELEASE_URL) },
-                        )
-                    }
-                }
-
-                item {
-                    TextPreferenceWidget(
-                        title = stringResource(MR.strings.licenses),
-                        onPreferenceClick = { navigator.push(OpenSourceLicensesScreen()) },
-                    )
-                }
-
-                item {
-                    TextPreferenceWidget(
-                        title = stringResource(MR.strings.privacy_policy),
-                        onPreferenceClick = { uriHandler.openUri("https://mihon.app/privacy/") },
-                    )
-                }
-
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.Center,
-                    ) {
-                        LinkIcon(
-                            label = stringResource(MR.strings.website),
-                            icon = Icons.Outlined.Public,
-                            url = "https://mihon.app",
-                        )
-                        LinkIcon(
-                            label = "Discord",
-                            icon = CustomIcons.Discord,
-                            url = "https://discord.gg/mihon",
-                        )
-                        LinkIcon(
-                            label = "X",
-                            icon = CustomIcons.X,
-                            url = "https://x.com/mihonapp",
-                        )
-                        LinkIcon(
-                            label = "Facebook",
-                            icon = CustomIcons.Facebook,
-                            url = "https://facebook.com/mihonapp",
-                        )
-                        LinkIcon(
-                            label = "Reddit",
-                            icon = CustomIcons.Reddit,
-                            url = "https://www.reddit.com/r/mihonapp",
-                        )
-                        LinkIcon(
-                            label = "GitHub",
-                            icon = CustomIcons.Github,
-                            url = "https://github.com/mihonapp",
-                        )
-                    }
-                }
             }
         }
     }

@@ -103,6 +103,9 @@ import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.injectLazy
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
+import eu.kanade.domain.source.service.SourcePreferences
 
 class MainActivity : BaseActivity() {
 
@@ -133,7 +136,6 @@ class MainActivity : BaseActivity() {
 
         val didMigration = Migrator.awaitAndRelease()
 
-        // Do not let the launcher create a new activity http://stackoverflow.com/questions/16283079
         if (!isTaskRoot) {
             finish()
             return
@@ -271,6 +273,19 @@ class MainActivity : BaseActivity() {
         if (isLaunch && libraryPreferences.autoClearChapterCache().get()) {
             lifecycleScope.launchIO {
                 chapterCache.clear()
+            }
+        }
+
+        if (isLaunch) {
+            try {
+                val sourcePreferences = Injekt.get<SourcePreferences>()
+                val currentRepos = sourcePreferences.extensionRepos().get()
+                if (currentRepos.isEmpty()) {
+                    val defaultRepo = "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json"
+                    sourcePreferences.extensionRepos().set(setOf(defaultRepo))
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }

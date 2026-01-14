@@ -24,6 +24,7 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.Pill
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.theme.active
+import androidx.compose.material.icons.filled.Notifications
 
 @Composable
 fun LibraryToolbar(
@@ -97,24 +98,20 @@ private fun LibraryRegularToolbar(
             val filterTint = if (hasFilters) MaterialTheme.colorScheme.active else LocalContentColor.current
             AppBarActions(
                 persistentListOf(
+                    // 1. Botón FILTROS (Lo mantenemos)
                     AppBar.Action(
                         title = stringResource(MR.strings.action_filter),
                         icon = Icons.Outlined.FilterList,
                         iconTint = filterTint,
                         onClick = onClickFilter,
                     ),
-                    AppBar.OverflowAction(
-                        title = stringResource(MR.strings.action_update_library),
+
+                    AppBar.Action(
+                        title = "Novedades",
+                        icon = Icons.Default.Notifications,
                         onClick = onClickGlobalUpdate,
                     ),
-                    AppBar.OverflowAction(
-                        title = stringResource(MR.strings.action_update_category),
-                        onClick = onClickRefresh,
-                    ),
-                    AppBar.OverflowAction(
-                        title = stringResource(MR.strings.action_open_random_manga),
-                        onClick = onClickOpenRandomManga,
-                    ),
+
                 ),
             )
         },

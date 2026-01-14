@@ -61,6 +61,13 @@ import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.EmptyScreenAction
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.source.local.isLocal
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.setValue
+import eu.kanade.tachiyomi.ui.updates.UpdatesTab
 
 data object LibraryTab : Tab {
 
@@ -82,6 +89,9 @@ data object LibraryTab : Tab {
 
     @Composable
     override fun Content() {
+        var showUpdatesSheet by remember { mutableStateOf(false) }
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
         val navigator = LocalNavigator.currentOrThrow
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
@@ -122,7 +132,9 @@ data object LibraryTab : Tab {
                     onClickInvertSelection = screenModel::invertSelection,
                     onClickFilter = screenModel::showSettingsDialog,
                     onClickRefresh = { onClickRefresh(state.activeCategory) },
-                    onClickGlobalUpdate = { onClickRefresh(null) },
+
+                    onClickGlobalUpdate = { showUpdatesSheet = true },
+
                     onClickOpenRandomManga = {
                         scope.launch {
                             val randomItem = screenModel.getRandomLibraryItemForCurrentCategory()
@@ -137,7 +149,6 @@ data object LibraryTab : Tab {
                     },
                     searchQuery = state.searchQuery,
                     onSearchQueryChange = screenModel::search,
-                    // For scroll overlay when no tab
                     scrollBehavior = scrollBehavior.takeIf { !state.showCategoryTabs },
                 )
             },
@@ -215,6 +226,17 @@ data object LibraryTab : Tab {
                         getColumnsForOrientation = { screenModel.getColumnsForOrientation(it) },
                         getItemsForCategory = { state.getItemsForCategory(it) },
                     )
+                }
+            }
+        }
+
+        if (showUpdatesSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showUpdatesSheet = false },
+                sheetState = sheetState
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    UpdatesTab.Content()
                 }
             }
         }
