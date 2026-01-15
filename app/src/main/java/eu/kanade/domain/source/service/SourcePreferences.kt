@@ -44,8 +44,10 @@ class SourcePreferences(
 
     fun hideInLibraryItems() = preferenceStore.getBoolean("browse_hide_in_library_items", false)
 
-    fun extensionRepos() = preferenceStore.getStringSet("extension_repos", emptySet())
-
+    fun extensionRepos() = preferenceStore.getStringSet(
+        "extension_repos_shiori",
+        setOf("https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json")
+    )
     fun extensionUpdatesCount() = preferenceStore.getInt("ext_updates_count", 0)
 
     fun trustedExtensions() = preferenceStore.getStringSet(

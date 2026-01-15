@@ -223,7 +223,7 @@ fun LogoHeader() {
             painter = painterResource(R.drawable.ic_mihon_splash),
             contentDescription = "Logo",
             modifier = Modifier
-                .size(140.dp),
+                .size(100.dp),
             tint = MaterialTheme.colorScheme.onSurface
         )
 

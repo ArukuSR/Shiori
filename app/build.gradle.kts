@@ -24,10 +24,11 @@ android {
     namespace = "eu.kanade.tachiyomi"
 
     defaultConfig {
-        applicationId = "app.mihon"
+        applicationId = "app.shiori"
+        versionCode = 1
+        versionName = "1.0.0"
 
-        versionCode = 16
-        versionName = "0.19.3"
+        resValue("string", "app_name", "Shiori")
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
@@ -38,7 +39,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildTypes {
+    buildTypes{
         val debug by getting {
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-${getCommitCount()}"
@@ -104,7 +105,7 @@ android {
 
     packaging {
         jniLibs {
-            keepDebugSymbols += listOf(
+            val libs = listOf(
                 "libandroidx.graphics.path",
                 "libarchive-jni",
                 "libconscrypt_jni",
@@ -112,7 +113,7 @@ android {
                 "libquickjs",
                 "libsqlite3x",
             )
-                .map { "**/$it.so" }
+            keepDebugSymbols += libs.map { "**/$it.so" }
         }
         resources {
             excludes += setOf(
@@ -129,7 +130,6 @@ android {
             )
         }
     }
-
     dependenciesInfo {
         includeInApk = Config.includeDependencyInfo
         includeInBundle = Config.includeDependencyInfo

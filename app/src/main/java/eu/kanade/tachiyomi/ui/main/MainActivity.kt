@@ -106,6 +106,7 @@ import uy.kohesive.injekt.injectLazy
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import eu.kanade.domain.source.service.SourcePreferences
+import android.widget.Toast
 
 class MainActivity : BaseActivity() {
 
@@ -133,6 +134,25 @@ class MainActivity : BaseActivity() {
         val splashScreen = if (isLaunch) installSplashScreen() else null
 
         super.onCreate(savedInstanceState)
+
+        try {
+            val sourcePreferences = Injekt.get<SourcePreferences>()
+            // URL del repo de Keiyoushi
+            val repoUrl = "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json"
+
+            val currentRepos = sourcePreferences.extensionRepos().get()
+
+            // Si el repo NO está en la lista, lo añadimos a la fuerza
+            if (!currentRepos.contains(repoUrl)) {
+                val newRepos = currentRepos + repoUrl
+                sourcePreferences.extensionRepos().set(newRepos)
+
+                // Mensaje visual para saber que funcionó
+                Toast.makeText(this, "✅ Repo Keiyoushi inyectado", Toast.LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "❌ Error inyectando repo: ${e.message}", Toast.LENGTH_LONG).show()
+        }
 
         val didMigration = Migrator.awaitAndRelease()
 
@@ -273,19 +293,6 @@ class MainActivity : BaseActivity() {
         if (isLaunch && libraryPreferences.autoClearChapterCache().get()) {
             lifecycleScope.launchIO {
                 chapterCache.clear()
-            }
-        }
-
-        if (isLaunch) {
-            try {
-                val sourcePreferences = Injekt.get<SourcePreferences>()
-                val currentRepos = sourcePreferences.extensionRepos().get()
-                if (currentRepos.isEmpty()) {
-                    val defaultRepo = "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json"
-                    sourcePreferences.extensionRepos().set(setOf(defaultRepo))
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
     }
