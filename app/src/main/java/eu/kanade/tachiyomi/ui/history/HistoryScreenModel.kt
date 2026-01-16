@@ -44,12 +44,14 @@ import tachiyomi.domain.manga.model.MangaWithChapterCount
 import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import tachiyomi.domain.manga.interactor.GetLibraryManga
 
 class HistoryScreenModel(
     private val addTracks: AddTracks = Injekt.get(),
     private val getCategories: GetCategories = Injekt.get(),
     private val getDuplicateLibraryManga: GetDuplicateLibraryManga = Injekt.get(),
     private val getHistory: GetHistory = Injekt.get(),
+    private val getLibraryManga: GetLibraryManga = Injekt.get(),
     private val getManga: GetManga = Injekt.get(),
     private val getNextChapters: GetNextChapters = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
@@ -79,6 +81,17 @@ class HistoryScreenModel(
                 }
                 .collect { newList -> mutableState.update { it.copy(list = newList) } }
         }
+
+        screenModelScope.launchIO {
+            getLibraryManga.subscribe()
+                .collect { libraryList ->
+                    val recent = libraryList
+                        .map { it.manga }
+                        .sortedByDescending { it.dateAdded }
+                        .take(20)
+                    mutableState.update { it.copy(recentlyAdded = recent) }
+                }
+        }
     }
 
     private fun List<HistoryWithRelations>.toHistoryUiModels(): List<HistoryUiModel> {
@@ -88,7 +101,6 @@ class HistoryScreenModel(
                 val afterDate = after?.item?.readAt?.time?.toLocalDate()
                 when {
                     beforeDate != afterDate && afterDate != null -> HistoryUiModel.Header(afterDate)
-                    // Return null to avoid adding a separator between two items.
                     else -> null
                 }
             }
@@ -137,11 +149,6 @@ class HistoryScreenModel(
         mutableState.update { it.copy(dialog = dialog) }
     }
 
-    /**
-     * Get user categories.
-     *
-     * @return List of categories, not including the default category
-     */
     suspend fun getCategories(): List<Category> {
         return getCategories.await().filterNot { it.isSystemCategory }
     }
@@ -187,31 +194,26 @@ class HistoryScreenModel(
 
     fun addFavorite(manga: Manga) {
         screenModelScope.launchIO {
-            // Move to default category if applicable
             val categories = getCategories()
             val defaultCategoryId = libraryPreferences.defaultCategory().get().toLong()
             val defaultCategory = categories.find { it.id == defaultCategoryId }
 
             when {
-                // Default category set
                 defaultCategory != null -> {
                     val result = updateManga.awaitUpdateFavorite(manga.id, true)
                     if (!result) return@launchIO
                     moveMangaToCategory(manga.id, defaultCategory)
                 }
 
-                // Automatic 'Default' or no categories
                 defaultCategoryId == 0L || categories.isEmpty() -> {
                     val result = updateManga.awaitUpdateFavorite(manga.id, true)
                     if (!result) return@launchIO
                     moveMangaToCategory(manga.id, null)
                 }
 
-                // Choose a category
                 else -> showChangeCategoryDialog(manga)
             }
 
-            // Sync with tracking services if applicable
             addTracks.bindEnhancedTrackers(manga, sourceManager.getOrStub(manga.source))
         }
     }
@@ -241,6 +243,7 @@ class HistoryScreenModel(
     data class State(
         val searchQuery: String? = null,
         val list: List<HistoryUiModel>? = null,
+        val recentlyAdded: List<Manga>? = null,
         val dialog: Dialog? = null,
     )
 

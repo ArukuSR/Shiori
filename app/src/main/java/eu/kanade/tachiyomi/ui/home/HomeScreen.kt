@@ -44,7 +44,6 @@ import eu.kanade.tachiyomi.ui.library.LibraryTab
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.more.MoreTab
 import eu.kanade.tachiyomi.ui.updates.UpdatesTab
-// IMPORTANTE: Asegúrate de que este import coincida con el archivo que creamos antes
 import eu.kanade.tachiyomi.ui.browse.ExtensionManagerScreen
 
 import kotlinx.coroutines.channels.Channel
@@ -76,9 +75,8 @@ object HomeScreen : Screen() {
     private const val TabNavigatorKey = "HomeTabs"
 
     private val TABS = listOf(
-        LibraryTab,
-        //UpdatesTab, // Si alguna vez quieres reactivar Updates, descomenta aquí
         HistoryTab,
+        LibraryTab,
         BrowseTab,
         MoreTab,
     )
@@ -87,10 +85,9 @@ object HomeScreen : Screen() {
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         TabNavigator(
-            tab = LibraryTab,
+            tab = HistoryTab,
             key = TabNavigatorKey,
         ) { tabNavigator ->
-            // Provide usable navigator to content screen
             CompositionLocalProvider(LocalNavigator provides navigator) {
                 Scaffold(
                     startBar = {
@@ -145,20 +142,19 @@ object HomeScreen : Screen() {
                 }
             }
 
-            val goToLibraryTab = { tabNavigator.current = LibraryTab }
+            val goToHomeTab = { tabNavigator.current = HistoryTab }
 
-            BackHandler(enabled = tabNavigator.current != LibraryTab, onBack = goToLibraryTab)
+            BackHandler(enabled = tabNavigator.current != HistoryTab, onBack = goToHomeTab)
 
             LaunchedEffect(Unit) {
                 launch {
                     librarySearchEvent.receiveAsFlow().collectLatest {
-                        goToLibraryTab()
+                        goToHomeTab()
                         LibraryTab.search(it)
                     }
                 }
                 launch {
                     openTabEvent.receiveAsFlow().collectLatest { tabEvent ->
-                        // Lógica de navegación principal
                         when (tabEvent) {
                             is Tab.Library -> {
                                 tabNavigator.current = LibraryTab
@@ -169,12 +165,7 @@ object HomeScreen : Screen() {
                             Tab.Updates -> tabNavigator.current = UpdatesTab
                             Tab.History -> tabNavigator.current = HistoryTab
                             is Tab.Browse -> {
-                                // CORRECCIÓN CLAVE:
-                                // Si pide ir a extensiones, empujamos la pantalla nueva
-                                // Si no, simplemente cambiamos a la pestaña Browse
                                 if (tabEvent.toExtensions) {
-                                    // Primero vamos a MoreTab (donde vive ahora Extensiones) o nos quedamos donde estamos
-                                    // Opcional: tabNavigator.current = MoreTab
                                     navigator.push(ExtensionManagerScreen())
                                 } else {
                                     tabNavigator.current = BrowseTab
@@ -271,8 +262,6 @@ object HomeScreen : Screen() {
                             }
                         }
                     }
-                    // MOVIDO: Ahora la notificación de extensiones sale en MoreTab (Ajustes)
-                    // Porque ahí es donde movimos el menú de extensiones.
                     MoreTab::class.isInstance(tab) -> {
                         val count by produceState(initialValue = 0) {
                             Injekt.get<SourcePreferences>().extensionUpdatesCount().changes()
